@@ -111,6 +111,7 @@ private:
         }
         return true;
     }
+    
     std::vector<const char*> getRequiredExtensions() {
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
