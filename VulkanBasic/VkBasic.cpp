@@ -7,19 +7,19 @@
 #include <cstdlib>
 #include <cstring>
 
+const int WIDTH = 800;
+const int HEIGHT = 600;
+const char** glfwExtensions;
+const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+
+#ifdef NDEBUG
+    const bool enableValidationLayers = false;
+#else
+    const bool enableValidationLayers = true;
+#endif
+
 class VkBasic {
 private:
-    const int WIDTH = 800;
-    const int HEIGHT = 600;
-    const char** glfwExtensions;
-    const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
-
-    #ifdef NDEBUG
-        const bool enableValidationLayers = false;
-    #else
-        const bool enableValidationLayers = true;
-    #endif
-    
     GLFWwindow* window;
     VkInstance instance;
 
@@ -111,7 +111,7 @@ private:
         }
         return true;
     }
-    
+
     std::vector<const char*> getRequiredExtensions() {
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
@@ -123,6 +123,12 @@ private:
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
         return extensions;
+    }
+
+    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity, VkDebugUtilsMessageTypeFlagsEXT msgType,
+                                                        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+        std::cerr << "validation layer" << pCallbackData->pMessage << std::endl;
+    return VK_FALSE;
     }
 public:
     void run(){
