@@ -40,28 +40,37 @@ const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"
 #endif
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator,
-                                        VkDebugUtilsMessengerEXT* pCallback) {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugutilsmessengerEXT");
+                                        VkDebugUtilsMessengerEXT* pDebugMessenger) {
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr) {
-        return func(instance, pCreateInfo, pAllocator, pCallback);
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
     } else {
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
 }
 
-VkResult DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator) {
+VkResult DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr) {
-        func(instance, callback, pAllocator);
+        func(instance, debugMessenger, pAllocator);
     }
 }
+
+struct QueueFamilyIndices {
+    int graphicsFamily = -1;
+
+    bool isComplete() {
+        return graphicsFamily >= 0;
+    } 
+};
 
 class VkBasic {
 private:
     bool validate;
     GLFWwindow* window;
     VkInstance instance = 0;
-    VkDebugUtilsMessengerEXT callback;
+    VkDebugUtilsMessengerEXT debugMessenger;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     uint32_t enabled_extension_count{0};
     uint32_t enabled_layer_count{0};
     char const *extension_names[64];
@@ -78,21 +87,21 @@ private:
 
     VkBool32 check_layers(uint32_t check_count, char const *const *const check_names, uint32_t layer_count,
                               VkLayerProperties *layers) {
-    for (uint32_t i = 0; i < check_count; i++) {
-        VkBool32 found = VK_FALSE;
-        for (uint32_t j = 0; j < layer_count; j++) {
-            if (!strcmp(check_names[i], layers[j].layerName)) {
-                found = VK_TRUE;
-                break;
+        for (uint32_t i = 0; i < check_count; i++) {
+            VkBool32 found = VK_FALSE;
+            for (uint32_t j = 0; j < layer_count; j++) {
+                if (!strcmp(check_names[i], layers[j].layerName)) {
+                    found = VK_TRUE;
+                    break;
+                }
+            }
+            if (!found) {
+                fprintf(stderr, "Cannot find layer: %s\n", check_names[i]);
+                return 0;
             }
         }
-        if (!found) {
-            fprintf(stderr, "Cannot find layer: %s\n", check_names[i]);
-            return 0;
-        }
+        return VK_TRUE;
     }
-    return VK_TRUE;
-}
 
     // Initialising Application Metadata, checking supported extensions and initialising Vulkan instance
     void createInstance(){
@@ -173,9 +182,8 @@ private:
         }
         
 
-        std::cout << "creating instance" << std::endl;
+        //std::cout << "creating instance" << std::endl;
         VkResult res = vkCreateInstance(&createInfo, nullptr, &instance);
-        std::cout << "instance Created!" << std::endl;
         //std::cout << (int32_t) res << std::endl;
         if (res != VK_SUCCESS) {
             throw std::runtime_error("failed to create instance!");
@@ -187,7 +195,11 @@ private:
     }
     void initVulkan() {
         createInstance();
+        std::cout << "Instance Created" << std::endl;
         setupDebugCallback();
+        std::cout << "Debug Callback Setup successful" << std::endl;
+        pickPhysicalDevice();
+        std::cout << "Physical Device Picked" << std::endl;
     }
 
     void mainLoop() {
@@ -200,11 +212,14 @@ private:
     // Destroying Vulkan and GLFW instances before exit
     void cleanup() {
         if(enableValidationLayers) {
-            DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
+            DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+            std::cout << "Debug Messenger Destroyed" << std::endl;
         }
 
         vkDestroyInstance(instance, nullptr);
+        std::cout << "Instance Destroyed" << std::endl;
         glfwDestroyWindow(window);
+        std::cout << "Window Destroyed" << std::endl;
         glfwTerminate();
     }
 
@@ -223,10 +238,62 @@ private:
 
         VkDebugUtilsMessengerCreateInfoEXT createInfo;
         populateDebugMessengerCreateInfo(createInfo);
-        
-        if(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &callback) != VK_SUCCESS) {
+
+        if(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
             throw std::runtime_error("failed to set up debug messenger!");
         }
+    }
+
+    void pickPhysicalDevice() {
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
+        if (deviceCount == 0) {
+            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        }
+
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+        for (const auto& device : devices) {
+            if (isDeviceSuitable(device)) {
+                physicalDevice = device;
+                break;
+            }
+        }
+
+        if (physicalDevice == VK_NULL_HANDLE) {
+            throw std::runtime_error("failed to find a suitable GPU");
+        }
+    }
+
+    bool isDeviceSuitable(VkPhysicalDevice device) {
+        //here required properties and features can be listed in order to filter out GPU that are not suitable (could lead to runtime issues)
+        QueueFamilyIndices indeces = findQueueFamilies(device);
+        return indeces.isComplete();
+    }
+
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
+        QueueFamilyIndices indices;
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr); // get the number of queue families
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data()); // get the data for each found queue family
+
+        int i = 0;
+        for (const auto& queueFamily : queueFamilies) {
+            if (queueFamilyCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                indices.graphicsFamily = i;
+            }
+
+            if (indices.isComplete()) {
+                break;
+            }
+
+            i++; // this is going to be used later (different version of indeces.isComplete())
+        }
+
+        return indices;
     }
 
     bool checkValidationLayerSupport() {
@@ -262,6 +329,7 @@ private:
 
         if (enableValidationLayers) {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
         }
         return extensions;
     }
