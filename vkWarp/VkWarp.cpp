@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 
 #include <set>
+#include <array>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -110,7 +111,7 @@ const std::vector<Vertex> vertices = {
     {{ 0.5f,  0.5f} /*, {color_here}*/}
 };
 
-class VkBasicApp {
+class VkWarpApp {
 private:
     bool framebufferResized = false;
     size_t currentFrame = 0;
@@ -142,13 +143,13 @@ private:
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-        window = glfwCreateWindow(WIDTH, HEIGHT, "Basic Vulkan", nullptr, nullptr);
+        window = glfwCreateWindow(WIDTH, HEIGHT, "vkWarp", nullptr, nullptr);
        glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     }
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-        auto app = reinterpret_cast<VkBasicApp*>(glfwGetWindowUserPointer(window));
+        auto app = reinterpret_cast<VkWarpApp*>(glfwGetWindowUserPointer(window));
         app->framebufferResized = true;
     }
 
@@ -563,7 +564,7 @@ private:
 
         VkPipelineVertexInputStateCreateInfo vertInputCreateInfo = {};
         vertInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        
+
         auto bindingDescr = Vertex::getBindingDescription();
         auto attrDescr = Vertex::getAttributeDescriptions();
 
@@ -1086,7 +1087,7 @@ public:
 };
 
 int main(int argc, char const *argv[]){
-    VkBasicApp vkBasicApp;
+    VkWarpApp vkBasicApp;
 
     try {
         vkBasicApp.run();
