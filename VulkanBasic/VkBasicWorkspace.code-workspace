@@ -6,6 +6,8 @@
 	],
 	"settings": {
 		"files.associations": {
+			"*.vert": "glsl",
+			"*.frag": "glsl",
 			"ostream": "cpp",
 			"array": "cpp",
 			"atomic": "cpp",
@@ -61,7 +63,9 @@
 			"stdexcept": "cpp",
 			"streambuf": "cpp",
 			"thread": "cpp",
-			"typeinfo": "cpp"
+			"typeinfo": "cpp",
+			"numeric": "cpp",
+			"shared_mutex": "cpp"
 		}
 	}
 }
