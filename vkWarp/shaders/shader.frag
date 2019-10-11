@@ -14,9 +14,9 @@ void main() {
     /** 16-bits layered texture mapping */
     vec4 firstLayerTexCoordMS = texture(uvTexSamplerMS, fragTexCoord); // Most Significant 8-bits
     vec4 firstLayerTexCoordLS = texture(uvTexSamplerLS, fragTexCoord); // Least Significant 8-bits
-    float u = (firstLayerTexCoordMS.r * 65535.0 + firstLayerTexCoordLS.r * 256.0) / 65535.0; // Computing 16-bits u coordinate
-    float v = (firstLayerTexCoordMS.g * 65535.0 + firstLayerTexCoordLS.g * 256.0) / 65535.0; // Computing 16-bits v coordinate
-    float intensity = (firstLayerTexCoordMS.b * 65535.0 + firstLayerTexCoordLS.b * 256.0) / 65535.0; // Computing 16-bits intensity
+    float u = (firstLayerTexCoordMS.r * 65280.0 + firstLayerTexCoordLS.r * 255.0) / 65535.0; // Computing 16-bits u coordinate
+    float v = (firstLayerTexCoordMS.g * 65280.0 + firstLayerTexCoordLS.g * 255.0) / 65535.0; // Computing 16-bits v coordinate
+    float intensity = (firstLayerTexCoordMS.b * 65280.0 + firstLayerTexCoordLS.b * 255.0) / 65535.0; // Computing 16-bits intensity
     outColor = texture(colorTexSampler, vec2(u,v)) * intensity; // Computing final colour
 
     /** 8-bits layered texture mapping */

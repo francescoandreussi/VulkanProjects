@@ -8,6 +8,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <X11/Xlib.h>
+#include <X11/Xmu/WinUtil.h>
+
 #include <set>
 #include <array>
 #include <chrono>
@@ -144,6 +147,11 @@ const std::vector<uint16_t> indices = {
 class VkWarpApp {
 private:
     GLFWwindow* window;
+    
+    // for real-time screen capturing
+    Display *display;
+    Window root_window;
+    XImage *screenCapture;
 
     VkInstance instance = 0;
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -180,6 +188,7 @@ private:
     VkImage colorTextureImage;
     VkDeviceMemory colorTextureImageMemory;
     VkImageView colorTextureImageView;
+    VkFormat colorTexFormat;
     
     VkSampler textureSampler;
 
@@ -193,6 +202,7 @@ private:
 
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
+    std::array<VkWriteDescriptorSet, 4> writeDescriptorSets = {};
     
     std::vector<VkCommandBuffer> commandBuffers;
     
@@ -202,14 +212,18 @@ private:
     size_t currentFrame = 0;
 
     bool framebufferResized = false;
+    bool capture = false;
 
     // Initialising GLFW instance, attributes and creating window
     void initWindow() {
+        display = XOpenDisplay(nullptr);
+        root_window = DefaultRootWindow(display);
+
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
         window = glfwCreateWindow(WIDTH, HEIGHT, "vkWarp", nullptr, nullptr);
-       glfwSetWindowUserPointer(window, this);
+        glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     }
 
@@ -355,6 +369,7 @@ private:
         std::cout << "Surface Destroyed" << std::endl;
         vkDestroyInstance(instance, nullptr);
         std::cout << "Instance Destroyed" << std::endl;
+        XCloseDisplay(display);
         glfwDestroyWindow(window);
         std::cout << "Window Destroyed" << std::endl;
         glfwTerminate();
@@ -941,12 +956,65 @@ private:
 
         //loadTexture("/home/eldomo/Desktop/domeCalibration1k3.jpg", colorTextureImage, colorTextureImageMemory);##############################################
         int colorTexWidth, colorTexHeight, colorTexChannels;
+        //VkFormat format;
+        stbi_uc* colorPixels;
         //!!! Modify down here for changing warping effect
-        stbi_uc* colorPixels = stbi_load("/home/eldomo/Desktop/domeCalibration1k3.jpg", &colorTexWidth, &colorTexHeight, &colorTexChannels, STBI_rgb_alpha);
+        if (capture) {
+            std::cout << "...screen capture..." << std::endl;
+            screenCapture = XGetImage(display, root_window, 480, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
+            std::cout << "Screen Capture Initialised!" << std::endl;
+            colorTexWidth = screenCapture->width;
+            colorTexHeight = screenCapture->height;
+            colorTexChannels = 4;
+            colorPixels = (stbi_uc*) screenCapture->data;
+            colorTexFormat = VK_FORMAT_B8G8R8A8_UNORM;
+        } else {
+            colorPixels = stbi_load("/home/eldomo/Desktop/domeCalibration1k3.jpg", &colorTexWidth, &colorTexHeight, &colorTexChannels, STBI_rgb_alpha);
+            colorTexFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        }
         VkDeviceSize colorImageSize = colorTexWidth * colorTexHeight * 4;
 
         if (!colorPixels) {
-            //throw std::runtime_error(strcat(strcat("failed to load ", filename), "texture image!"));
+            throw std::runtime_error("failed to load colour texture image!");
+        }
+
+        VkBuffer colorStagingBuffer;
+        VkDeviceMemory colorStagingBufferMemory;
+        createBuffer(colorImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     colorStagingBuffer, colorStagingBufferMemory);
+        
+        void* colorData;
+        vkMapMemory(logicalDevice, colorStagingBufferMemory, 0, colorImageSize, 0, &colorData);
+            memcpy(colorData, colorPixels, static_cast<size_t>(colorImageSize));
+        vkUnmapMemory(logicalDevice, colorStagingBufferMemory);
+
+        stbi_image_free(colorPixels);
+
+        createImage(colorTexWidth, colorTexHeight, colorTexFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorTextureImage, colorTextureImageMemory);
+        
+        transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            copyBufferToImage(colorStagingBuffer, colorTextureImage, static_cast<uint32_t>(colorTexWidth), static_cast<uint32_t>(colorTexHeight));
+        transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        vkDestroyBuffer(logicalDevice, colorStagingBuffer, nullptr);
+        vkFreeMemory(logicalDevice, colorStagingBufferMemory, nullptr);
+    }
+
+    /*void updateScreenCapture() {
+        int colorTexWidth, colorTexHeight, colorTexChannels;
+        stbi_uc* colorPixels;
+        //!!! Modify down here for changing warping effect
+        std::cout << "...screen capture..." << std::endl;
+        screenCapture = XGetImage(display, root_window, 480, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
+        std::cout << "Screen Capture Initialised!" << std::endl;
+        colorTexWidth = screenCapture->width;
+        colorTexHeight = screenCapture->height;
+        colorTexChannels = 4;
+        colorPixels = (stbi_uc*) screenCapture->data;
+        VkDeviceSize colorImageSize = colorTexWidth * colorTexHeight * 4;
+
+        if (!colorPixels) {
             throw std::runtime_error("failed to load colour texture image!");
         }
 
@@ -971,7 +1039,32 @@ private:
 
         vkDestroyBuffer(logicalDevice, colorStagingBuffer, nullptr);
         vkFreeMemory(logicalDevice, colorStagingBufferMemory, nullptr);
-    }
+
+        colorTextureImageView = createImageView(colorTextureImage, VK_FORMAT_R8G8B8A8_UNORM);
+
+        for (size_t i = 0; i < swapChainImages.size(); i++) {
+            VkDescriptorImageInfo descriptorColorImageInfo = {};
+            descriptorColorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            descriptorColorImageInfo.imageView = colorTextureImageView;
+            descriptorColorImageInfo.sampler = textureSampler;
+
+            writeDescriptorSets[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writeDescriptorSets[3].dstSet = descriptorSets[i];
+            writeDescriptorSets[3].dstBinding = 3;
+            writeDescriptorSets[3].dstArrayElement = 0;
+            writeDescriptorSets[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            writeDescriptorSets[3].descriptorCount = 1;
+            //writeDescriptorSets[3].pBufferInfo = &descriptorBufferInfo;
+            writeDescriptorSets[3].pImageInfo = &descriptorColorImageInfo;
+            //writeDescriptorSets[3].pTexelBufferView = nullptr;
+        }
+
+        vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+
+        vkFreeCommandBuffers(logicalDevice, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+        createCommandBuffers();
+
+    }*/
 
     /*void loadTexture(const char* filename, VkImage image, VkDeviceMemory imageMemory){
         int texWidth, texHeight, texChannels;
@@ -1010,7 +1103,7 @@ private:
     void createTextureImageView() {
         uvMSTextureImageView = createImageView(uvMSTextureImage, VK_FORMAT_R8G8B8A8_UNORM);
         uvLSTextureImageView = createImageView(uvLSTextureImage, VK_FORMAT_R8G8B8A8_UNORM);
-        colorTextureImageView = createImageView(colorTextureImage, VK_FORMAT_R8G8B8A8_UNORM);
+        colorTextureImageView = createImageView(colorTextureImage, colorTexFormat);
     }
 
     void createTextureSampler() {
@@ -1273,7 +1366,7 @@ private:
             descriptorColorImageInfo.imageView = colorTextureImageView;
             descriptorColorImageInfo.sampler = textureSampler;
 
-            std::array<VkWriteDescriptorSet, 4> writeDescriptorSets = {};
+            //std::array<VkWriteDescriptorSet, 4> writeDescriptorSets = {};
             
             writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             writeDescriptorSets[0].dstSet = descriptorSets[i];
@@ -1501,6 +1594,10 @@ private:
         vkMapMemory(logicalDevice, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
             memcpy(data, &ubo, sizeof(ubo));
         vkUnmapMemory(logicalDevice, uniformBuffersMemory[currentImage]);
+
+        if (capture) {
+
+        }
     }
 
     void drawFrame() {
@@ -1783,7 +1880,8 @@ private:
     }
 
 public:
-    void run(){
+    void run(bool argCapture){
+        capture = argCapture;
         initWindow();
         initVulkan();
         mainLoop();
@@ -1795,7 +1893,8 @@ int main(int argc, char const *argv[]){
     VkWarpApp vkBasicApp;
 
     try {
-        vkBasicApp.run();
+        std::string argCapture ("capture");
+        vkBasicApp.run(argc > 1 && argCapture.compare(argv[1]) == 0);
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
