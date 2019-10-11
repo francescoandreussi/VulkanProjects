@@ -876,7 +876,7 @@ private:
         //loadTexture("textures/identityUVMS.png", uvMSTextureImage, uvMSTextureImageMemory);
         int uvMSTexWidth, uvMSTexHeight, uvMSTexChannels;
         //!!! Modify down here for changing warping effect
-        stbi_uc* uvMSPixels = stbi_load("textures/SimpleWarpUVIntensityMS.png", &uvMSTexWidth, &uvMSTexHeight, &uvMSTexChannels, STBI_rgb_alpha);
+        stbi_uc* uvMSPixels = stbi_load("textures/identityUVMS.png", &uvMSTexWidth, &uvMSTexHeight, &uvMSTexChannels, STBI_rgb_alpha);
         VkDeviceSize uvMSImageSize = uvMSTexWidth * uvMSTexHeight * 4;
 
         if (!uvMSPixels) {
@@ -909,7 +909,7 @@ private:
         //loadTexture("textures/identityUVLS.png", uvLSTextureImage, uvLSTextureImageMemory);##################################################################
         int uvLSTexWidth, uvLSTexHeight, uvLSTexChannels;
         //!!! Modify down here for changing warping effect
-        stbi_uc* uvLSPixels = stbi_load("textures/SimpleWarpUVIntensityLS.png", &uvLSTexWidth, &uvLSTexHeight, &uvLSTexChannels, STBI_rgb_alpha);
+        stbi_uc* uvLSPixels = stbi_load("textures/identityUVLS.png", &uvLSTexWidth, &uvLSTexHeight, &uvLSTexChannels, STBI_rgb_alpha);
         VkDeviceSize uvLSImageSize = uvLSTexWidth * uvLSTexHeight * 4;
 
         if (!uvLSPixels) {
