@@ -169,10 +169,13 @@ private:
     
     VkCommandPool commandPool;
 
-    VkImage uvTextureImage;
-    VkDeviceMemory uvTextureImageMemory;
-    VkImageView uvTextureImageView;
-    //VkSampler uvTextureSampler;
+    VkImage uvMSTextureImage;
+    VkDeviceMemory uvMSTextureImageMemory;
+    VkImageView uvMSTextureImageView;
+
+    VkImage uvLSTextureImage;
+    VkDeviceMemory uvLSTextureImageMemory;
+    VkImageView uvLSTextureImageView;
 
     VkImage colorTextureImage;
     VkDeviceMemory colorTextureImageMemory;
@@ -312,10 +315,13 @@ private:
         vkDestroyImage(logicalDevice, colorTextureImage, nullptr);
         vkFreeMemory(logicalDevice, colorTextureImageMemory, nullptr);
 
-        //vkDestroySampler(logicalDevice, uvTextureSampler, nullptr);
-        vkDestroyImageView(logicalDevice, uvTextureImageView, nullptr);
-        vkDestroyImage(logicalDevice, uvTextureImage, nullptr);
-        vkFreeMemory(logicalDevice, uvTextureImageMemory, nullptr);
+        vkDestroyImageView(logicalDevice, uvLSTextureImageView, nullptr);
+        vkDestroyImage(logicalDevice, uvLSTextureImage, nullptr);
+        vkFreeMemory(logicalDevice, uvLSTextureImageMemory, nullptr);
+
+        vkDestroyImageView(logicalDevice, uvMSTextureImageView, nullptr);
+        vkDestroyImage(logicalDevice, uvMSTextureImage, nullptr);
+        vkFreeMemory(logicalDevice, uvMSTextureImageMemory, nullptr);
 
         vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 
@@ -636,21 +642,33 @@ private:
         uboLayoutBinding.pImmutableSamplers = nullptr;
         uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-        VkDescriptorSetLayoutBinding uvSamplerLayoutBinding = {};
-        uvSamplerLayoutBinding.binding = 1;
-        uvSamplerLayoutBinding.descriptorCount = 1;
-        uvSamplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        uvSamplerLayoutBinding.pImmutableSamplers = nullptr;
-        uvSamplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        VkDescriptorSetLayoutBinding uvMSSamplerLayoutBinding = {};
+        uvMSSamplerLayoutBinding.binding = 1;
+        uvMSSamplerLayoutBinding.descriptorCount = 1;
+        uvMSSamplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        uvMSSamplerLayoutBinding.pImmutableSamplers = nullptr;
+        uvMSSamplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        VkDescriptorSetLayoutBinding uvLSSamplerLayoutBinding = {};
+        uvLSSamplerLayoutBinding.binding = 2;
+        uvLSSamplerLayoutBinding.descriptorCount = 1;
+        uvLSSamplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        uvLSSamplerLayoutBinding.pImmutableSamplers = nullptr;
+        uvLSSamplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
         VkDescriptorSetLayoutBinding colorSamplerLayoutBinding = {};
-        colorSamplerLayoutBinding.binding = 2;
+        colorSamplerLayoutBinding.binding = 3;
         colorSamplerLayoutBinding.descriptorCount = 1;
         colorSamplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         colorSamplerLayoutBinding.pImmutableSamplers = nullptr;
         colorSamplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        std::array<VkDescriptorSetLayoutBinding, 3> bindings = {uboLayoutBinding, uvSamplerLayoutBinding, colorSamplerLayoutBinding};
+        std::array<VkDescriptorSetLayoutBinding, 4> bindings = {
+            uboLayoutBinding,
+            uvMSSamplerLayoutBinding,
+            uvLSSamplerLayoutBinding,
+            colorSamplerLayoutBinding
+        };
         VkDescriptorSetLayoutCreateInfo dsLayoutCreateInfo = {};
         dsLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         dsLayoutCreateInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -855,44 +873,81 @@ private:
 
     // TODO: REFACTORING!!!
     void createTextureImage() {
-        int uvTexWidth, uvTexHeight, uvTexChannels;
+        //loadTexture("textures/identityUVMS.png", uvMSTextureImage, uvMSTextureImageMemory);
+        int uvMSTexWidth, uvMSTexHeight, uvMSTexChannels;
         //!!! Modify down here for changing warping effect
-        stbi_uc* uvPixels = stbi_load("textures/SimpleWarpUVIntensity.png", &uvTexWidth, &uvTexHeight, &uvTexChannels, STBI_rgb_alpha);
-        VkDeviceSize uvImageSize = uvTexWidth * uvTexHeight * 4;
+        stbi_uc* uvMSPixels = stbi_load("textures/identityUVMS.png", &uvMSTexWidth, &uvMSTexHeight, &uvMSTexChannels, STBI_rgb_alpha);
+        VkDeviceSize uvMSImageSize = uvMSTexWidth * uvMSTexHeight * 4;
 
-        if (!uvPixels) {
-            throw std::runtime_error("failed to load uv texture image!");
+        if (!uvMSPixels) {
+            //throw std::runtime_error(strcat(strcat("failed to load ", filename), "texture image!"));
+            throw std::runtime_error("failed to load uv MS texture image!");
         }
 
-        VkBuffer uvStagingBuffer;
-        VkDeviceMemory uvStagingBufferMemory;
-        createBuffer(uvImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     uvStagingBuffer, uvStagingBufferMemory);
+        VkBuffer uvMSStagingBuffer;
+        VkDeviceMemory uvMSStagingBufferMemory;
+        createBuffer(uvMSImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     uvMSStagingBuffer, uvMSStagingBufferMemory);
         
-        void* uvData;
-        vkMapMemory(logicalDevice, uvStagingBufferMemory, 0, uvImageSize, 0, &uvData);
-            memcpy(uvData ,uvPixels, static_cast<size_t>(uvImageSize));
-        vkUnmapMemory(logicalDevice, uvStagingBufferMemory);
+        void* uvMSData;
+        vkMapMemory(logicalDevice, uvMSStagingBufferMemory, 0, uvMSImageSize, 0, &uvMSData);
+            memcpy(uvMSData ,uvMSPixels, static_cast<size_t>(uvMSImageSize));
+        vkUnmapMemory(logicalDevice, uvMSStagingBufferMemory);
 
-        stbi_image_free(uvPixels);
+        stbi_image_free(uvMSPixels);
 
-        createImage(uvTexWidth, uvTexHeight, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, uvTextureImage, uvTextureImageMemory);
+        createImage(uvMSTexWidth, uvMSTexHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, uvMSTextureImage, uvMSTextureImageMemory);
+        
+        transitionImageLayout(uvMSTextureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            copyBufferToImage(uvMSStagingBuffer, uvMSTextureImage, static_cast<uint32_t>(uvMSTexWidth), static_cast<uint32_t>(uvMSTexHeight));
+        transitionImageLayout(uvMSTextureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        transitionImageLayout(uvTextureImage, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            copyBufferToImage(uvStagingBuffer, uvTextureImage, static_cast<uint32_t>(uvTexWidth), static_cast<uint32_t>(uvTexHeight));
-        transitionImageLayout(uvTextureImage, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkDestroyBuffer(logicalDevice, uvMSStagingBuffer, nullptr);
+        vkFreeMemory(logicalDevice, uvMSStagingBufferMemory, nullptr);
 
-        vkDestroyBuffer(logicalDevice, uvStagingBuffer, nullptr);
-        vkFreeMemory(logicalDevice, uvStagingBufferMemory, nullptr);
+        //loadTexture("textures/identityUVLS.png", uvLSTextureImage, uvLSTextureImageMemory);##################################################################
+        int uvLSTexWidth, uvLSTexHeight, uvLSTexChannels;
+        //!!! Modify down here for changing warping effect
+        stbi_uc* uvLSPixels = stbi_load("textures/identityUVLS.png", &uvLSTexWidth, &uvLSTexHeight, &uvLSTexChannels, STBI_rgb_alpha);
+        VkDeviceSize uvLSImageSize = uvLSTexWidth * uvLSTexHeight * 4;
 
-        //!!! Modify down here to change the image to be warped and rendered
+        if (!uvLSPixels) {
+            //throw std::runtime_error(strcat(strcat("failed to load ", filename), "texture image!"));
+            throw std::runtime_error("failed to load uv LS texture image!");
+        }
+
+        VkBuffer uvLSStagingBuffer;
+        VkDeviceMemory uvLSStagingBufferMemory;
+        createBuffer(uvLSImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     uvLSStagingBuffer, uvLSStagingBufferMemory);
+        
+        void* uvLSData;
+        vkMapMemory(logicalDevice, uvLSStagingBufferMemory, 0, uvLSImageSize, 0, &uvLSData);
+            memcpy(uvLSData, uvLSPixels, static_cast<size_t>(uvLSImageSize));
+        vkUnmapMemory(logicalDevice, uvLSStagingBufferMemory);
+
+        stbi_image_free(uvLSPixels);
+
+        createImage(uvLSTexWidth, uvLSTexHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, uvLSTextureImage, uvLSTextureImageMemory);
+        
+        transitionImageLayout(uvLSTextureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            copyBufferToImage(uvLSStagingBuffer, uvLSTextureImage, static_cast<uint32_t>(uvLSTexWidth), static_cast<uint32_t>(uvLSTexHeight));
+        transitionImageLayout(uvLSTextureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        vkDestroyBuffer(logicalDevice, uvLSStagingBuffer, nullptr);
+        vkFreeMemory(logicalDevice, uvLSStagingBufferMemory, nullptr);
+
+        //loadTexture("/home/eldomo/Desktop/domeCalibration1k3.jpg", colorTextureImage, colorTextureImageMemory);##############################################
         int colorTexWidth, colorTexHeight, colorTexChannels;
+        //!!! Modify down here for changing warping effect
         stbi_uc* colorPixels = stbi_load("/home/eldomo/Desktop/domeCalibration1k3.jpg", &colorTexWidth, &colorTexHeight, &colorTexChannels, STBI_rgb_alpha);
         VkDeviceSize colorImageSize = colorTexWidth * colorTexHeight * 4;
 
         if (!colorPixels) {
-            throw std::runtime_error("failed to load color texture image!");
+            //throw std::runtime_error(strcat(strcat("failed to load ", filename), "texture image!"));
+            throw std::runtime_error("failed to load colour texture image!");
         }
 
         VkBuffer colorStagingBuffer;
@@ -902,14 +957,14 @@ private:
         
         void* colorData;
         vkMapMemory(logicalDevice, colorStagingBufferMemory, 0, colorImageSize, 0, &colorData);
-            memcpy(colorData ,colorPixels, static_cast<size_t>(colorImageSize));
+            memcpy(colorData, colorPixels, static_cast<size_t>(colorImageSize));
         vkUnmapMemory(logicalDevice, colorStagingBufferMemory);
 
         stbi_image_free(colorPixels);
 
         createImage(colorTexWidth, colorTexHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorTextureImage, colorTextureImageMemory);
-
+        
         transitionImageLayout(colorTextureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
             copyBufferToImage(colorStagingBuffer, colorTextureImage, static_cast<uint32_t>(colorTexWidth), static_cast<uint32_t>(colorTexHeight));
         transitionImageLayout(colorTextureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -918,8 +973,43 @@ private:
         vkFreeMemory(logicalDevice, colorStagingBufferMemory, nullptr);
     }
 
+    /*void loadTexture(const char* filename, VkImage image, VkDeviceMemory imageMemory){
+        int texWidth, texHeight, texChannels;
+        //!!! Modify down here for changing warping effect
+        stbi_uc* pixels = stbi_load(filename, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+        if (!pixels) {
+            //throw std::runtime_error(strcat(strcat("failed to load ", filename), "texture image!"));
+            throw std::runtime_error("failed to load texture image!");
+        }
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     stagingBuffer, stagingBufferMemory);
+        
+        void* data;
+        vkMapMemory(logicalDevice, stagingBufferMemory, 0, imageSize, 0, &data);
+            memcpy(data ,pixels, static_cast<size_t>(imageSize));
+        vkUnmapMemory(logicalDevice, stagingBufferMemory);
+
+        stbi_image_free(pixels);
+
+        createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
+        
+        transitionImageLayout(image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            copyBufferToImage(stagingBuffer, image, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        transitionImageLayout(image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
+        vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
+    }*/
+
     void createTextureImageView() {
-        uvTextureImageView = createImageView(uvTextureImage, VK_FORMAT_R8G8B8A8_UNORM);
+        uvMSTextureImageView = createImageView(uvMSTextureImage, VK_FORMAT_R8G8B8A8_UNORM);
+        uvLSTextureImageView = createImageView(uvLSTextureImage, VK_FORMAT_R8G8B8A8_UNORM);
         colorTextureImageView = createImageView(colorTextureImage, VK_FORMAT_R8G8B8A8_UNORM);
     }
 
@@ -1168,17 +1258,22 @@ private:
             descriptorBufferInfo.offset = 0;
             descriptorBufferInfo.range = sizeof(UniformBufferObject);
 
-            VkDescriptorImageInfo descriptorUVImageInfo = {};
-            descriptorUVImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            descriptorUVImageInfo.imageView = uvTextureImageView;
-            descriptorUVImageInfo.sampler = textureSampler;
+            VkDescriptorImageInfo descriptorUVMSImageInfo = {};
+            descriptorUVMSImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            descriptorUVMSImageInfo.imageView = uvMSTextureImageView;
+            descriptorUVMSImageInfo.sampler = textureSampler;
+
+            VkDescriptorImageInfo descriptorUVLSImageInfo = {};
+            descriptorUVLSImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            descriptorUVLSImageInfo.imageView = uvLSTextureImageView;
+            descriptorUVLSImageInfo.sampler = textureSampler;
             
             VkDescriptorImageInfo descriptorColorImageInfo = {};
             descriptorColorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             descriptorColorImageInfo.imageView = colorTextureImageView;
             descriptorColorImageInfo.sampler = textureSampler;
 
-            std::array<VkWriteDescriptorSet, 3> writeDescriptorSets = {};
+            std::array<VkWriteDescriptorSet, 4> writeDescriptorSets = {};
             
             writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             writeDescriptorSets[0].dstSet = descriptorSets[i];
@@ -1197,7 +1292,7 @@ private:
             writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             writeDescriptorSets[1].descriptorCount = 1;
             //writeDescriptorSets[1].pBufferInfo = &descriptorBufferInfo;
-            writeDescriptorSets[1].pImageInfo = &descriptorUVImageInfo;
+            writeDescriptorSets[1].pImageInfo = &descriptorUVMSImageInfo;
             //writeDescriptorSets[1].pTexelBufferView = nullptr;
 
             writeDescriptorSets[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1207,8 +1302,18 @@ private:
             writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             writeDescriptorSets[2].descriptorCount = 1;
             //writeDescriptorSets[2].pBufferInfo = &descriptorBufferInfo;
-            writeDescriptorSets[2].pImageInfo = &descriptorColorImageInfo;
+            writeDescriptorSets[2].pImageInfo = &descriptorUVLSImageInfo;
             //writeDescriptorSets[2].pTexelBufferView = nullptr;
+
+            writeDescriptorSets[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writeDescriptorSets[3].dstSet = descriptorSets[i];
+            writeDescriptorSets[3].dstBinding = 3;
+            writeDescriptorSets[3].dstArrayElement = 0;
+            writeDescriptorSets[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            writeDescriptorSets[3].descriptorCount = 1;
+            //writeDescriptorSets[3].pBufferInfo = &descriptorBufferInfo;
+            writeDescriptorSets[3].pImageInfo = &descriptorColorImageInfo;
+            //writeDescriptorSets[3].pTexelBufferView = nullptr;
 
             vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
         }
