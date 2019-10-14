@@ -16,8 +16,21 @@ VkWarp: VkWarp.cpp
 run: VkWarp
 	./vkWarp
 
+runSW: VkWarp
+	./vkWarp textures/SimpleWarpUVMS.png textures/SimpleWarpUVLS.png
+
+runSWI: VkWarp
+	./vkWarp textures/SimpleWarpUVIntensityMS.png textures/SimpleWarpUVIntensityLS.png
+
 capture: VkWarp
 	./vkWarp capture
+
+captureSW: VkWarp
+	./vkWarp capture textures/SimpleWarpUVMS.png textures/SimpleWarpUVLS.png
+
+captureSWI: VkWarp
+	./vkWarp capture textures/SimpleWarpUVIntensityMS.png textures/SimpleWarpUVIntensityLS.png
+
 
 clean:
 	rm -f vkWarp
