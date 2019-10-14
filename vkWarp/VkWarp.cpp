@@ -14,6 +14,7 @@
 #include <set>
 #include <array>
 #include <chrono>
+#include <time.h>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -189,6 +190,8 @@ private:
     VkDeviceMemory colorTextureImageMemory;
     VkImageView colorTextureImageView;
     VkFormat colorTexFormat;
+    VkBuffer colorStagingBuffer;
+    VkDeviceMemory colorStagingBufferMemory;
     
     VkSampler textureSampler;
 
@@ -203,6 +206,7 @@ private:
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
     std::array<VkWriteDescriptorSet, 4> writeDescriptorSets = {};
+    VkDescriptorImageInfo descriptorColorImageInfo = {};
     
     std::vector<VkCommandBuffer> commandBuffers;
     
@@ -213,6 +217,8 @@ private:
 
     bool framebufferResized = false;
     bool capture = false;
+    time_t globalStartTime;
+    int frameNumber = 0;
 
     // Initialising GLFW instance, attributes and creating window
     void initWindow() {
@@ -280,6 +286,8 @@ private:
     }
 
     void mainLoop() {
+       time(&globalStartTime);
+
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
             drawFrame();
@@ -315,6 +323,9 @@ private:
             vkDestroyBuffer(logicalDevice, uniformBuffers[i], nullptr);
             vkFreeMemory(logicalDevice, uniformBuffersMemory[i], nullptr);
         }
+
+        vkDestroyBuffer(logicalDevice, colorStagingBuffer, nullptr);
+        vkFreeMemory(logicalDevice, colorStagingBufferMemory, nullptr);
 
         vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
     }
@@ -891,7 +902,7 @@ private:
         //loadTexture("textures/identityUVMS.png", uvMSTextureImage, uvMSTextureImageMemory);
         int uvMSTexWidth, uvMSTexHeight, uvMSTexChannels;
         //!!! Modify down here for changing warping effect
-        stbi_uc* uvMSPixels = stbi_load("textures/identityUVMS.png", &uvMSTexWidth, &uvMSTexHeight, &uvMSTexChannels, STBI_rgb_alpha);
+        stbi_uc* uvMSPixels = stbi_load("textures/SimpleWarpUVMS.png", &uvMSTexWidth, &uvMSTexHeight, &uvMSTexChannels, STBI_rgb_alpha);
         VkDeviceSize uvMSImageSize = uvMSTexWidth * uvMSTexHeight * 4;
 
         if (!uvMSPixels) {
@@ -924,7 +935,7 @@ private:
         //loadTexture("textures/identityUVLS.png", uvLSTextureImage, uvLSTextureImageMemory);##################################################################
         int uvLSTexWidth, uvLSTexHeight, uvLSTexChannels;
         //!!! Modify down here for changing warping effect
-        stbi_uc* uvLSPixels = stbi_load("textures/identityUVLS.png", &uvLSTexWidth, &uvLSTexHeight, &uvLSTexChannels, STBI_rgb_alpha);
+        stbi_uc* uvLSPixels = stbi_load("textures/SimpleWarpUVLS.png", &uvLSTexWidth, &uvLSTexHeight, &uvLSTexChannels, STBI_rgb_alpha);
         VkDeviceSize uvLSImageSize = uvLSTexWidth * uvLSTexHeight * 4;
 
         if (!uvLSPixels) {
@@ -961,7 +972,7 @@ private:
         //!!! Modify down here for changing warping effect
         if (capture) {
             std::cout << "...screen capture..." << std::endl;
-            screenCapture = XGetImage(display, root_window, 480, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
+            screenCapture = XGetImage(display, root_window, 420, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
             std::cout << "Screen Capture Initialised!" << std::endl;
             colorTexWidth = screenCapture->width;
             colorTexHeight = screenCapture->height;
@@ -978,8 +989,8 @@ private:
             throw std::runtime_error("failed to load colour texture image!");
         }
 
-        VkBuffer colorStagingBuffer;
-        VkDeviceMemory colorStagingBufferMemory;
+        //VkBuffer colorStagingBuffer;
+        //VkDeviceMemory colorStagingBufferMemory;
         createBuffer(colorImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      colorStagingBuffer, colorStagingBufferMemory);
         
@@ -997,8 +1008,8 @@ private:
             copyBufferToImage(colorStagingBuffer, colorTextureImage, static_cast<uint32_t>(colorTexWidth), static_cast<uint32_t>(colorTexHeight));
         transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        vkDestroyBuffer(logicalDevice, colorStagingBuffer, nullptr);
-        vkFreeMemory(logicalDevice, colorStagingBufferMemory, nullptr);
+        //vkDestroyBuffer(logicalDevice, colorStagingBuffer, nullptr);
+        //vkFreeMemory(logicalDevice, colorStagingBufferMemory, nullptr);
     }
 
     /*void updateScreenCapture() {
@@ -1361,7 +1372,7 @@ private:
             descriptorUVLSImageInfo.imageView = uvLSTextureImageView;
             descriptorUVLSImageInfo.sampler = textureSampler;
             
-            VkDescriptorImageInfo descriptorColorImageInfo = {};
+            //VkDescriptorImageInfo descriptorColorImageInfo = {};
             descriptorColorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             descriptorColorImageInfo.imageView = colorTextureImageView;
             descriptorColorImageInfo.sampler = textureSampler;
@@ -1583,6 +1594,18 @@ private:
 
         //auto currentTime = std::chrono::high_resolution_clock::now();
         //float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        time_t currentTime;
+        time(&currentTime);
+
+        frameNumber++;
+
+        if (difftime(currentTime, globalStartTime) >= 1.0f) {
+            std::cout << float(frameNumber) / 1.0f << " fps" << std::endl;
+            globalStartTime = currentTime;
+            //std::cout << frameNumber << std::endl;
+            frameNumber = 0;
+        }
+        //std::cout << difftime(currentTime, globalStartTime) << std::endl;
 
         // necessary for pipeline but not used
         UniformBufferObject ubo = {};
@@ -1596,7 +1619,32 @@ private:
         vkUnmapMemory(logicalDevice, uniformBuffersMemory[currentImage]);
 
         if (capture) {
+            // initialise structures for image
+            int colorTexWidth, colorTexHeight, colorTexChannels;
+            stbi_uc* colorPixels;
 
+            // capture screen XGetImage
+            //std::cout << "...screen capture..." << std::endl;
+            screenCapture = XGetImage(display, root_window, 420, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
+            //std::cout << "Screen Capture Initialised!" << std::endl;
+            colorTexWidth = screenCapture->width;
+            colorTexHeight = screenCapture->height;
+            colorTexChannels = 4;
+            colorPixels = (stbi_uc*) screenCapture->data;
+            colorTexFormat = VK_FORMAT_B8G8R8A8_UNORM;
+            VkDeviceSize colorImageSize = colorTexWidth * colorTexHeight * 4;
+            
+            // pass to stagingBuffer captured data
+            void* colorData;
+            vkMapMemory(logicalDevice, colorStagingBufferMemory, 0, colorImageSize, 0, &colorData);
+                memcpy(colorData, colorPixels, static_cast<size_t>(colorImageSize));
+            vkUnmapMemory(logicalDevice, colorStagingBufferMemory);
+            stbi_image_free(colorPixels);
+
+            // update VkImage and, thus, its VkImageView
+            transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                copyBufferToImage(colorStagingBuffer, colorTextureImage, static_cast<uint32_t>(colorTexWidth), static_cast<uint32_t>(colorTexHeight));
+            transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
     }
 
