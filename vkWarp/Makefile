@@ -22,6 +22,9 @@ runSW: VkWarp
 runSWI: VkWarp
 	./vkWarp textures/SimpleWarpUVIntensityMS.png textures/SimpleWarpUVIntensityLS.png
 
+runWarp: VkWarp
+	./vkWarp textures/WarpUVMS.png textures/WarpUVLS.png full
+
 capture: VkWarp
 	./vkWarp capture
 
@@ -31,6 +34,8 @@ captureSW: VkWarp
 captureSWI: VkWarp
 	./vkWarp capture textures/SimpleWarpUVIntensityMS.png textures/SimpleWarpUVIntensityLS.png
 
+captureWarp: VkWarp
+	./vkWarp capture textures/WarpUVMS.png textures/WarpUVLS.png full
 
 clean:
 	rm -f vkWarp

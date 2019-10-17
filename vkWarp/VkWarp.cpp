@@ -134,11 +134,18 @@ struct UniformBufferObject {
 };
 
 // ###VERTICES INFORMATION###
-const std::vector<Vertex> vertices = {
+const std::vector<Vertex> verticesQuad = {
     {{-0.5625f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
     {{ 0.5625f, -1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
     {{ 0.5625f,  1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
     {{-0.5625f,  1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
+};
+
+const std::vector<Vertex> verticesFull = {
+    {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{ 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{ 1.0f,  1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-1.0f,  1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 };
 
 const std::vector<uint16_t> indices = {
@@ -248,7 +255,7 @@ private:
         app->framebufferResized = true;
     }
 
-    void initVulkan(const char* uvMSFilename, const char* uvLSFilename) {
+    void initVulkan(bool fullscreen, const char* uvMSFilename, const char* uvLSFilename) {
         createInstance();
         std::cout << "Instance Created" << std::endl;
         setupDebugCallback();
@@ -279,7 +286,11 @@ private:
         std::cout << "Texture Image View Created" << std::endl;
         createTextureSampler();
         std::cout << "Texture Image Sampler" << std::endl;
-        createVertexBuffer();
+        if (fullscreen){
+            createVertexBuffer(verticesFull);
+        } else {
+            createVertexBuffer(verticesQuad);
+        }
         std::cout << "Vertex Buffer Created" << std::endl;
         createIndexBuffer();
         std::cout << "Index Buffer Created" << std::endl;
@@ -950,6 +961,7 @@ private:
 
         if (!uvLSPixels) {
             //throw std::runtime_error(strcat(strcat("failed to load ", filename), "texture image!"));
+            std::cout << uvLSFilename << std::endl;
             throw std::runtime_error("failed to load uv LS texture image!");
         }
 
@@ -1176,7 +1188,7 @@ private:
         endSingleTimeCommands(commandBuffer);
     }
 
-    void createVertexBuffer() {
+    void createVertexBuffer(const std::vector<Vertex> vertices) {
         VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
         std::cout << bufferSize << std::endl;
         
@@ -1841,10 +1853,10 @@ private:
     }
 
 public:
-    void run(bool argCapture, const char* uvMSFilename, const char* uvLSFilename){
+    void run(bool argCapture, const char* uvMSFilename, const char* uvLSFilename, bool fullscreen){
         capture = argCapture;
         initWindow();
-        initVulkan(uvMSFilename, uvLSFilename);
+        initVulkan(fullscreen, uvMSFilename, uvLSFilename);
         mainLoop();
         cleanup();
     }
@@ -1855,15 +1867,25 @@ int main(int argc, char const *argv[]){
 
     try {
         char argCapture[] = "capture";
+        char argFull[] = "full";
         //std::cout << argv[argc-1] << std::endl;
         if (strcmp(argCapture, argv[argc-1]) == 0) {
-            vkBasicApp.run(true, "textures/identityUVMS.png", "textures/identityUVLS.png");
-        } else if (argc > 3){ 
-            vkBasicApp.run(true, argv[argc-2], argv[argc-1]);
-        } else if (argc > 2) {
-            vkBasicApp.run(false, argv[argc-2], argv[argc-1]);
+            std::cout << "captureID" << std::endl;
+            vkBasicApp.run(true, "textures/identityUVMS.png", "textures/identityUVLS.png", false);
+        } else if (argc > 4){
+            std::cout << "captureWarp" << std::endl;
+            vkBasicApp.run(true, argv[2], argv[3], true);
+        } else if (argc > 2 && argc < 4) {
+            if (strcmp(argFull, argv[argc-1])) {
+                std::cout << "runSimpleWarp" << std::endl;
+                vkBasicApp.run(false, argv[argc-2], argv[argc-1], true);
+            } else {
+                std::cout << "runSimpleWarp" << std::endl;
+                vkBasicApp.run(false, argv[argc-2], argv[argc-1], false);
+            }
         } else {
-            vkBasicApp.run(false, "textures/identityUVMS.png", "textures/identityUVLS.png");
+            std::cout << "Warp" << std::endl;
+            vkBasicApp.run(false, "textures/identityUVMS.png", "textures/identityUVLS.png", false);
         }
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
