@@ -8,8 +8,17 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include <X11/Xlib.h>
-#include <X11/Xmu/WinUtil.h>
+#if __linux__
+    #include <X11/Xlib.h>
+    #include <X11/Xmu/WinUtil.h>
+    #define OS 1
+#elif _WIN32
+    #define OS 2
+#elif __APPLE__
+    #define OS 3
+#else
+    #define OS 0
+#endif
 
 #include <set>
 #include <array>
@@ -22,6 +31,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <optional>
 #include <vulkan/vk_sdk_platform.h>
 #include <vulkan/vulkan.hpp>
 
@@ -157,10 +167,11 @@ private:
     GLFWwindow* window;
     
     // for real-time screen capturing
-    Display *display;
-    Window root_window;
-    XImage *screenCapture;
-
+    #if __linux__
+        Display *display;
+        Window root_window;
+        XImage *screenCapture;
+    #endif
     VkInstance instance = 0;
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
@@ -239,8 +250,10 @@ private:
 
     // Initialising GLFW instance, attributes and creating window
     void initWindow() {
-        display = XOpenDisplay(nullptr);
-        root_window = DefaultRootWindow(display);
+        #if __linux__
+            display = XOpenDisplay(nullptr);
+            root_window = DefaultRootWindow(display);
+        #endif
 
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -401,7 +414,9 @@ private:
         std::cout << "Surface Destroyed" << std::endl;
         vkDestroyInstance(instance, nullptr);
         std::cout << "Instance Destroyed" << std::endl;
-        XCloseDisplay(display);
+        #if __linux__
+            XCloseDisplay(display);
+        #endif
         glfwDestroyWindow(window);
         std::cout << "Window Destroyed" << std::endl;
         glfwTerminate();
@@ -994,13 +1009,15 @@ private:
         //!!! Modify down here for changing warping effect
         if (capture) {
             std::cout << "...screen capture..." << std::endl;
-            screenCapture = XGetImage(display, root_window, 420, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
-            std::cout << "Screen Capture Initialised!" << std::endl;
-            colorTexWidth = screenCapture->width;
-            colorTexHeight = screenCapture->height;
-            colorTexChannels = 4;
-            colorPixels = (stbi_uc*) screenCapture->data;
-            colorTexFormat = VK_FORMAT_B8G8R8A8_UNORM;
+            #if __linux__
+                screenCapture = XGetImage(display, root_window, 420, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
+                std::cout << "Screen Capture Initialised!" << std::endl;
+                colorTexWidth = screenCapture->width;
+                colorTexHeight = screenCapture->height;
+                colorTexChannels = 4;
+                colorPixels = (stbi_uc*) screenCapture->data;
+                colorTexFormat = VK_FORMAT_B8G8R8A8_UNORM;
+            #endif
         } else {
             colorPixels = stbi_load("/home/eldomo/Desktop/domeCalibration1k3.jpg", &colorTexWidth, &colorTexHeight, &colorTexChannels, STBI_rgb_alpha);
             colorTexFormat = VK_FORMAT_R8G8B8A8_UNORM;
@@ -1014,7 +1031,7 @@ private:
         //VkBuffer colorStagingBuffer;
         //VkDeviceMemory colorStagingBufferMemory;
         createBuffer(colorImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     colorStagingBuffer, colorStagingBufferMemory);
+                    colorStagingBuffer, colorStagingBufferMemory);
         
         void* colorData;
         vkMapMemory(logicalDevice, colorStagingBufferMemory, 0, colorImageSize, 0, &colorData);
@@ -1547,27 +1564,28 @@ private:
         // initialise structures for image
         int colorTexWidth, colorTexHeight, colorTexChannels;
         stbi_uc* colorPixels;
+        #if __linux__
+            // capture screen XGetImage
+            screenCapture = XGetImage(display, root_window, 420, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
+            colorTexWidth = screenCapture->width;
+            colorTexHeight = screenCapture->height;
+            colorTexChannels = 4;
+            colorPixels = (stbi_uc*) screenCapture->data;
+            colorTexFormat = VK_FORMAT_B8G8R8A8_UNORM;
+            VkDeviceSize colorImageSize = colorTexWidth * colorTexHeight * 4;
 
-        // capture screen XGetImage
-        screenCapture = XGetImage(display, root_window, 420, 0, HEIGHT, HEIGHT, AllPlanes, ZPixmap);
-        colorTexWidth = screenCapture->width;
-        colorTexHeight = screenCapture->height;
-        colorTexChannels = 4;
-        colorPixels = (stbi_uc*) screenCapture->data;
-        colorTexFormat = VK_FORMAT_B8G8R8A8_UNORM;
-        VkDeviceSize colorImageSize = colorTexWidth * colorTexHeight * 4;
-        
-        // pass to stagingBuffer captured data
-        void* colorData;
-        vkMapMemory(logicalDevice, colorStagingBufferMemory, 0, colorImageSize, 0, &colorData);
-            memcpy(colorData, colorPixels, static_cast<size_t>(colorImageSize));
-        vkUnmapMemory(logicalDevice, colorStagingBufferMemory);
-        stbi_image_free(colorPixels);
+            // pass to stagingBuffer captured data
+            void* colorData;
+            vkMapMemory(logicalDevice, colorStagingBufferMemory, 0, colorImageSize, 0, &colorData);
+                memcpy(colorData, colorPixels, static_cast<size_t>(colorImageSize));
+            vkUnmapMemory(logicalDevice, colorStagingBufferMemory);
+            stbi_image_free(colorPixels);
 
-        // update VkImage and, thus, its VkImageView
-        transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            copyBufferToImage(colorStagingBuffer, colorTextureImage, static_cast<uint32_t>(colorTexWidth), static_cast<uint32_t>(colorTexHeight));
-        transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            // update VkImage and, thus, its VkImageView
+            transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                copyBufferToImage(colorStagingBuffer, colorTextureImage, static_cast<uint32_t>(colorTexWidth), static_cast<uint32_t>(colorTexHeight));
+            transitionImageLayout(colorTextureImage, colorTexFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        #endif
     }
 
     void drawFrame() {
@@ -1575,7 +1593,7 @@ private:
 
         uint32_t imgIndex;
         VkResult res = vkAcquireNextImageKHR(logicalDevice, swapChain, std::numeric_limits<uint64_t>::max(),
-                                             imgAvailSemaphores[currentFrame], VK_NULL_HANDLE, &imgIndex);
+                                            imgAvailSemaphores[currentFrame], VK_NULL_HANDLE, &imgIndex);
         if (res == VK_ERROR_OUT_OF_DATE_KHR) {
             recreateSwapChain();
             return;

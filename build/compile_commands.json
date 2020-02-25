@@ -1,0 +1,7 @@
+[
+{
+  "directory": "C:/Users/franc/Documents/VulkanProjects/build",
+  "command": "C:\\PROGRA~2\\MICROS~3\\2019\\COMMUN~1\\VC\\Tools\\MSVC\\14.24.28314\\bin\\Hostx86\\x86\\cl.exe  /nologo /TP  -IC:\\VulkanSDK\\1.2.131.2\\Include\\** -IC:\\VulkanSDK\\Libraries\\** -IC:\\VulkanSDK\\Libraries\\glm\\** -IC:\\VulkanSDK\\Libraries\\glfw-3.3.2.bin.WIN64\\include  /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1   /FoCMakeFiles\\vkWarp.dir\\vkWarp\\VkWarp.cpp.obj /FdTARGET_COMPILE_PDB /FS -c C:\\Users\\franc\\Documents\\VulkanProjects\\vkWarp\\VkWarp.cpp",
+  "file": "C:/Users/franc/Documents/VulkanProjects/vkWarp/VkWarp.cpp"
+}
+]

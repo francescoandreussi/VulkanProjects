@@ -1,0 +1,7 @@
+# ninja log v5
+0	587	604345200	CMakeFiles/vkWarp.dir/main.cpp.obj	5bacbed165c642f9
+588	1050	604345200	vkWarp.exe	2d4cc872487af10
+4	775	604345765	build.ninja	9659811c9ca33dbf
+2	793	604351915	build.ninja	9659811c9ca33dbf
+1	724	604352034	build.ninja	9659811c9ca33dbf
+1	723	604352117	build.ninja	9659811c9ca33dbf
