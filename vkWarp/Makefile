@@ -9,7 +9,7 @@ VkWarp: VkWarp.cpp
 	#$(GLSLPATH)/glslangValidator -h
 	$(GLSLPATH)/glslangValidator -o shaders/vert.spv -V shaders/shader.vert
 	$(GLSLPATH)/glslangValidator -o shaders/frag.spv -V shaders/shader.frag
-	g++ $(CFLAGS) -o vkWarp VkWarp.cpp $(LDFLAGS)
+	g++ $(CFLAGS) -o bin/vkWarp src/VkWarp.cpp $(LDFLAGS)
 
 .PHONY: run clean
 
@@ -38,6 +38,6 @@ captureWarp: VkWarp
 	./vkWarp capture textures/WarpUVMS.png textures/WarpUVLS.png full
 
 clean:
-	rm -f vkWarp
+	rm -f bin/vkWarp
 	rm -f shaders/vert.spv
 	rm -f shaders/frag.spv

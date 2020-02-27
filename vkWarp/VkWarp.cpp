@@ -28,12 +28,14 @@
 #include <iostream>
 #include <stdexcept>
 #include <functional>
-#include <cstdlib>
+//#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <optional>
 #include <vulkan/vk_sdk_platform.h>
 #include <vulkan/vulkan.hpp>
+
+#include "../include/vkWarpConfig.h"
 
 const int WIDTH = 1920;
 const int HEIGHT = 1080;

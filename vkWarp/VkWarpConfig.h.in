@@ -1,0 +1,5 @@
+// the configured options and settings for vkWarp
+#define vkWarp_VERSION_MAJOR @vkWarp_VERSION_MAJOR@
+#define vkWarp_VERSION_MINOR @vkWarp_VERSION_MINOR@
+
+#cmakedefine USE_MYMATH
