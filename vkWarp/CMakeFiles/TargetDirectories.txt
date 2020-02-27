@@ -1,4 +1,0 @@
-C:/Users/franc/Documents/VulkanProjects/vkWarp/CMakeFiles/vkWarp.dir
-C:/Users/franc/Documents/VulkanProjects/vkWarp/CMakeFiles/ALL_BUILD.dir
-C:/Users/franc/Documents/VulkanProjects/vkWarp/CMakeFiles/ZERO_CHECK.dir
-C:/Users/franc/Documents/VulkanProjects/vkWarp/libs/CMakeFiles/libs.dir
