@@ -1,16 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\Users\franc\Documents\VulkanProjects\vkWarp\simple.cpp">
+    <ClCompile Include="C:\Users\franc\Documents\VulkanProjects\vkWarp\libs\mysqrt.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="C:\Users\franc\Documents\VulkanProjects\vkWarp\CMakeLists.txt" />
+    <CustomBuild Include="C:\Users\franc\Documents\VulkanProjects\vkWarp\libs\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{654F40FF-DE26-379A-8A59-C5F3E58FB23B}</UniqueIdentifier>
+      <UniqueIdentifier>{8409092B-6238-303B-8C88-73F48F8D177F}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

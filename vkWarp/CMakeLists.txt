@@ -19,7 +19,7 @@ if(USE_MYMATH)
     # In the subdir another cmake file must be written for specifying which files have to be considered
     add_subdirectory(libs)
     list(APPEND EXTRA_LIBS libs)
-    list(APPEND EXTRA_INCLUDES "${PROJECT_SOURCE_DIR}/libs")
+    #list(APPEND EXTRA_INCLUDES libs)
 endif()
 
 # Signalling which executables to consider
@@ -29,6 +29,4 @@ add_executable(vkWarp simple.cpp)
 target_link_libraries(vkWarp PUBLIC ${EXTRA_LIBS})
 
 # The compilation targets will be the $Binary and $Source/libs dirs  
-target_include_directories(vkWarp PUBLIC
-    "${PROJECT_BINARY_DIR}"
-    ${EXTRA_INCLUDES})
+target_include_directories(vkWarp PUBLIC "${PROJECT_BINARY_DIR}")
