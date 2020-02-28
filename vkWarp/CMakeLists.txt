@@ -30,3 +30,7 @@ target_link_libraries(vkWarp PUBLIC ${EXTRA_LIBS})
 
 # The compilation targets will be the $Binary and $Source/libs dirs  
 target_include_directories(vkWarp PUBLIC "${PROJECT_BINARY_DIR}")
+
+# Allows installation of application in the program folder of the computer (needs admin privileges)
+install(TARGETS vkWarp DESTINATION bin)
+install(FILES "${PROJECT_BINARY_DIR}/VkWarpConfig.h" DESTINATION include)
